@@ -273,6 +273,7 @@ def get_object_info(env, app, path=None, swift_source=None):
         split_path(path or env['PATH_INFO'], 4, 4, True)
     info = _get_object_info(app, env, account, container, obj,
                             swift_source=swift_source)
+    logging.info("*************** %s ******************",str(info))
     if not info:
         info = headers_to_object_info({}, 0)
     return info
@@ -759,7 +760,7 @@ class GetOrHeadHandler(object):
             else:
                 sddict[iplist[0]] = []
                 sddict[iplist[0]].append(iplist[1])
-        logging.info("===SDDICT===%s",sddict)
+        logging.info("\n\n\n===SDDICT===%s",sddict)
         ## CHANGED CODE ####
 
         node_timeout = self.app.node_timeout

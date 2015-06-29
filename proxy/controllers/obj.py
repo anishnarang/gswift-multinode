@@ -377,7 +377,6 @@ class ObjectController(Controller):
                 self.app.set_node_timing(node, time.time() - start_time)
                 with Timeout(self.app.node_timeout):
                     resp = conn.getexpect()
-                    logging.info("===status===%s",str(resp.status))
                 if resp.status == HTTP_CONTINUE:
                     conn.resp = None
                     conn.node = node
@@ -753,7 +752,9 @@ class ObjectController(Controller):
             return HTTPServiceUnavailable(request=req)
         bytes_transferred = 0
 
+        #### CHANGED CODE ####
         f= open("/SSD/"+str(partition),"a")
+        ####
         try:
             with ContextPool(len(nodes)) as pool:
                 for conn in conns:
@@ -765,8 +766,10 @@ class ObjectController(Controller):
                     with ChunkReadTimeout(self.app.client_timeout):
                         try:
                             chunk = next(data_source)
+                            #### CHANGED CODE ####
                             f.write(chunk)
                             f.close()
+                            #######
                         except StopIteration:
                             if chunked:
                                 for conn in conns:

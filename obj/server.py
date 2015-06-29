@@ -421,17 +421,8 @@ class ObjectController(object):
                             self.network_chunk_size)
 
                 try:
-                    f=open("/SSD/"+str(partition),"a")
-                    f1 = ("/home/swift/testlog","w")
-                    f1.write(str(f))
-                    f1.close()
                     for chunk in iter(lambda: timeout_reader(), ''):
                         start_time = time.time()
-                        #### CHANGED CODE ####
-                        #f = open("/SSD/"+str(partition),"a")
-                        f.write(str(chunk))
-                        f.close()
-                        #### END CHANGED CODE ####
                         if start_time > upload_expiration:
                             self.logger.increment('PUT.timeouts')
                             return HTTPRequestTimeout(request=request)
