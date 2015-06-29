@@ -36,7 +36,7 @@ from eventlet import sleep
 from eventlet.timeout import Timeout
 
 from swift.common.wsgi import make_pre_authed_env
-from swift.common.utils import normalize_timestamp, config_true_value, \
+from swift.common.utils import normalize_timestamp, hash_path, config_true_value, \
     public, split_path, list_from_csv, GreenthreadSafeIterator, \
     quorum_size, GreenAsyncPile
 from swift.common.bufferedhttp import http_connect
@@ -273,7 +273,6 @@ def get_object_info(env, app, path=None, swift_source=None):
         split_path(path or env['PATH_INFO'], 4, 4, True)
     info = _get_object_info(app, env, account, container, obj,
                             swift_source=swift_source)
-    logging.info("*************** %s ******************",str(info))
     if not info:
         info = headers_to_object_info({}, 0)
     return info
@@ -854,32 +853,39 @@ class GetOrHeadHandler(object):
 
 #### CHANGED CODE ####
 
-    def myread(self,size,partition):
+    def myread(self,size,partition,key,obj):
         logging.info("===IN generator===")
-        with open("/SSD/"+str(partition)) as f:
+        with open("/SSD/"+str(partition)+"/"+str(key[-3:])+"/"+str(key)+"/"+obj) as f:
             while True:
                 data = f.read(size)
                 if(not data):
                     break
                 yield data
 
-    def get_working_response(self, req):
+    def get_working_response(self, req, account, container, obj, server_type):
         source, node = self._get_source_and_node()
         res = None
-
+        flag = False
         #### CHANGED CODE ####
-        if(str(self.partition) in os.listdir("/SSD")):
-            logging.info("===Reading from SSD====")
-            res = Response(request=req)
-            res.app_iter = self.myread(self.app.object_chunk_size,self.partition)
+        if(server_type=='Object'):
+            logging.info("===server type===")
+            key = hash_path(account,container,obj)
+            logging.info("===a,c,o===%s",str((account,container,obj)))
+            logging.info("===part===%s",str(self.partition))
+            if(str(self.partition) in os.listdir("/SSD/")):
+                logging.info("===in if===")
+                if(str(key[-3:]) in os.listdir("/SSD/"+str(self.partition))):
+                    logging.info("===Reading from SSD====")
+                    flag = True
+                    res = Response(request=req)
+                    res.app_iter = self.myread(self.app.object_chunk_size,self.partition,key,obj)
         #### CHANGED CODE ####
-        else:   
+        if(not flag):   
             logging.info("===Reading from node===")
             logging.info("===Node chosen to download===%s",str(node))
             if source:
                 res = Response(request=req)
-                if req.method == 'GET' and \
-                        source.status in (HTTP_OK, HTTP_PARTIAL_CONTENT):
+                if req.method == 'GET' and source.status in (HTTP_OK, HTTP_PARTIAL_CONTENT):
                     res.app_iter = self._make_app_iter(req, node, source)
                     # See NOTE: swift_conn at top of file about this.
                     res.swift_conn = source.swift_conn
@@ -1213,7 +1219,7 @@ class Controller(object):
         else:
             self.app.logger.warning('Could not autocreate account %r' % path)
 
-    def GETorHEAD_base(self, req, server_type, ring, partition, path):
+    def GETorHEAD_base(self, req, server_type, ring, partition, path, account=None, container=None, obj=None):
         """
         Base handler for HTTP GET or HEAD requests.
 
@@ -1228,6 +1234,7 @@ class Controller(object):
         if(server_type=='Object'):
             logging.info("===IN GET.Partition:===%s",str(partition))
             logging.info("===server_type%s",str(self.server_type))
+            logging.info("===account name===%s",str(self.account_name))
             logging.info("===PATH===%s",str(path))
 
 
@@ -1236,7 +1243,8 @@ class Controller(object):
 
         handler = GetOrHeadHandler(self.app, req, self.server_type, ring,
                                    partition, path, backend_headers)
-        res = handler.get_working_response(req)
+        
+        res = handler.get_working_response(req,account,container,obj,self.server_type)
 
         if not res:
             res = self.best_response(

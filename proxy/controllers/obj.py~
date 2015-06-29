@@ -35,7 +35,7 @@ from eventlet import GreenPile
 from eventlet.queue import Queue
 from eventlet.timeout import Timeout
 
-from swift.common.utils import ContextPool, hash_path, normalize_timestamp, \
+from swift.common.utils import ContextPool, normalize_timestamp, \
     config_true_value, public, json, csv_append, GreenthreadSafeIterator, \
     quorum_size, GreenAsyncPile, normalize_delete_at_timestamp
 from swift.common.bufferedhttp import http_connect
@@ -49,13 +49,13 @@ from swift.common.http import is_success, is_client_error, HTTP_CONTINUE, \
     HTTP_INTERNAL_SERVER_ERROR, HTTP_SERVICE_UNAVAILABLE, \
     HTTP_INSUFFICIENT_STORAGE, HTTP_PRECONDITION_FAILED
 from swift.proxy.controllers.base import Controller, delay_denial, \
-    cors_validation
+    cors_validation, GetOrHeadHandler
 from swift.common.swob import HTTPAccepted, HTTPBadRequest, HTTPNotFound, \
     HTTPPreconditionFailed, HTTPRequestEntityTooLarge, HTTPRequestTimeout, \
     HTTPServerError, HTTPServiceUnavailable, Request, \
     HTTPClientDisconnect, HTTPNotImplemented
 from swift.common.request_helpers import is_user_meta
-import logging,ast,os
+import logging,ast
 
 logging.basicConfig(filename="/home/swift/swift.log",level=logging.INFO)
 
@@ -201,7 +201,7 @@ class ObjectController(Controller):
             self.account_name, self.container_name, self.object_name)
         resp = self.GETorHEAD_base(
             req, _('Object'), self.app.object_ring, partition,
-            req.swift_entity_path, self.account_name, self.container_name, self.object_name)
+            req.swift_entity_path)
 
         if ';' in resp.headers.get('content-type', ''):
             # strip off swift_bytes from content-type
@@ -210,6 +210,51 @@ class ObjectController(Controller):
             if check_extra_meta.lstrip().startswith('swift_bytes='):
                 resp.content_type = content_type
         return resp
+
+    def GETorHEAD_base(self, req, server_type, ring, partition, path):
+        """
+        Base handler for HTTP GET or HEAD requests.
+
+        :param req: swob.Request object
+        :param server_type: server type used in logging
+        :param ring: the ring to obtain nodes from
+        :param partition: partition
+        :param path: path for the request
+        :returns: swob.Response object
+        """
+        #### CHANGED CODE ####
+        if(server_type=='Object'):
+            logging.info("===IN GET.Partition:===%s",str(partition))
+            logging.info("===server_type%s",str(self.server_type))
+            logging.info("===account name===%s",str(self.account_name))
+            logging.info("===PATH===%s",str(path))
+
+
+        backend_headers = self.generate_request_headers(
+            req, additional=req.headers)
+
+        handler = GetOrHeadHandler(self.app, req, self.server_type, ring,
+                                   partition, path, backend_headers)
+        
+        res = handler.get_working_response(req,self.account_name,self.container_name,self.object_name)
+
+        if not res:
+            res = self.best_response(
+                req, handler.statuses, handler.reasons, handler.bodies,
+                '%s %s' % (server_type, req.method),
+                headers=handler.source_headers)
+        try:
+            (vrs, account, container) = req.split_path(2, 3)
+            _set_info_cache(self.app, req.environ, account, container, res)
+        except ValueError:
+            pass
+        try:
+            (vrs, account, container, obj) = req.split_path(4, 4, True)
+            _set_object_info_cache(self.app, req.environ, account,
+                                   container, obj, res)
+        except ValueError:
+            pass
+        return res
 
     @public
     @cors_validation
@@ -750,9 +795,7 @@ class ObjectController(Controller):
         bytes_transferred = 0
 
         #### CHANGED CODE ####
-        key = hash_path(self.account_name,self.container_name,self.object_name)
-        os.system("mkdir -p /SSD/"+str(partition)+"/"+str(key[-3:])+"/"+str(key))
-        f= open("/SSD/"+str(partition)+"/"+str(key[-3:])+"/"+str(key)+"/"+str(self.object_name),"w")
+        f= open("/SSD/"+str(partition),"a")
         ####
         try:
             with ContextPool(len(nodes)) as pool:
@@ -956,3 +999,6 @@ class ObjectController(Controller):
         req.headers['X-Copy-From'] = quote(source)
         del req.headers['Destination']
         return self.PUT(req)
+
+class myGetorHeadHandler(GetOrHeadHandler):
+    
