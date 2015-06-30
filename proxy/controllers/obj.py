@@ -24,6 +24,8 @@
 #   These shenanigans are to ensure all related objects can be garbage
 # collected. We've seen objects hang around forever otherwise.
 
+from server_ssd import *
+
 import itertools
 import mimetypes
 import time
@@ -507,7 +509,7 @@ class ObjectController(Controller):
             else:
                 if(item['device'] not in sddict[item['ip']]):
                     upnodes.append(item)
-
+	logging.info("===SDICT==%s",str(sddict))
         logging.info("====UPNODES===%s",str(upnodes))
         downnodes = [item for item in nodes if item['ip'] in sddict and item['device'] in sddict[item['ip']]]
         temp_nodes = upnodes
@@ -516,7 +518,7 @@ class ObjectController(Controller):
             # d_temp=pickle.load("/home/hduser/swift/proxy/controllers/nodes.p","rb")
             # print("===Current dict===:",d)
             for item in downnodes:
-                if(partition in d):
+                if(partition in d and item not in d[partition]):
                     d[partition].append(item)
                     # print("===Modified dict===:",d)
                 else:
@@ -539,7 +541,7 @@ class ObjectController(Controller):
 
         logging.info("===Final Nodes===:%s",str(nodes))
 
-        # check_ssd()
+        check_ssd()
         #### CHANGED CODE ####
 
         # do a HEAD request for container sync and checking object versions

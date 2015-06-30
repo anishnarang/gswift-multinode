@@ -1,6 +1,4 @@
 import socket
-#from flush_ssd import *
-# from chkdisk import *
 import commands
 import os
 import ast
@@ -13,14 +11,16 @@ from eventlet import Timeout
 from eventlet.green import subprocess
 from swift.common.utils import rsync_ip
 
+import logging
+logging.basicConfig(filename='/home/swift/swift.log',level=logging.DEBUG)
 
 def check(s):
 	cmd = "df -h "+s
-	print(cmd)
+	logging.info(cmd)
 	output = commands.getoutput(cmd)
 	output=output.split()
 	#x=os.system("df -h /media/hduser/UUI/")
-	print(output)
+	logging.info(output)
 	x=output[11].strip("%")
 	return int(x)
 
@@ -40,9 +40,9 @@ def del_dict():
 
 
 def rsync(partition, device):
-	node_ip = rsync_ip('127.0.0.1')
-	rsync_module = '%s::object' %(node_ip)
-	spath = join('/SSD/%s' %partition)
+	node_ip = rsync_ip(device['ip'])
+	rsync_module = 'swift@%s:' %(node_ip)
+	spath = '/SSD/'+str(partition)
 	args = [
             'rsync',
             '--recursive',
@@ -51,11 +51,13 @@ def rsync(partition, device):
             '--xattrs',
             '--itemize-changes',
             '--ignore-existing',
-            '--timeout=30'
+            '--timeout=30',
+            '--archive'
     ]
 	args.append(spath)
 	# args.append(join(rsync_module,'srv/node',device['device'],'objects',partition))
-	args.append(join(rsync_module,'/srv/node',device['device'],'objects',partition))
+	args.append(join(rsync_module,'srv/node',device['device'],'objects/'))
+	logging.info("===args===%s",str(args))
 	start_time = time.time()
 	ret_val = None
 	try:
@@ -65,81 +67,93 @@ def rsync(partition, device):
 			ret_val = proc.wait()
 
 	except Timeout:
-		print("Killing long-running rsync: %s", str(args))
+		logging.info("Killing long-running rsync: %s", str(args))
 		proc.kill()
 		return 1
 	total_time = time.time() - start_time
-
+	logging.info("===Total time===%s",str(total_time))
 	for result in results.split('\n'):
 	    if result == '':
 	        continue
 	    if result.startswith('cd+'):
 	        continue
 	if not ret_val:
-		print(result)
+		logging.info(result)
 	else:
-		print(result)
+		logging.info(result)
 	if ret_val:
-		print('Bad rsync return code: %(args)s -> %(ret)d',
+		logging.info('Bad rsync return code: %(args)s -> %(ret)d',
 	                      {'args': str(args), 'ret': ret_val})
 	elif results:
-		print("Successful rsync of %(src)s at %(dst)s (%(time).03f)",
+		logging.info("Successful rsync of %(src)s at %(dst)s (%(time).03f)",
 	        {'src': args[-2], 'dst': args[-1], 'time': total_time})
 	else:
-		print("Successful rsync of %(src)s at %(dst)s (%(time).03f)",
+		logging.info("Successful rsync of %(src)s at %(dst)s (%(time).03f)",
 	        {'src': args[-2], 'dst': args[-1], 'time': total_time})
 
-def flush():
+def flush(sddict):
 	# dict_info = pickle.load(open('/usr/bin/device.p','rb'))
+	## Should nodes.txt still have part:node? Or should it have hash:node?
+	## WHat if the destination directory of flush already has that partition folder?
+
 	dict_info = ast.literal_eval(open("/home/swift/nodes.txt","r").read())
 	files = [f for f in listdir('/SSD')] 
+	logging.info("===In flush===")
+	# for f in files:
+	# 	logging.info("===FILE in SSD===",f)
+	# 	deviceList = dict_info[int(f)]
+	# 	for i in deviceList:
+	# 		os.system('mkdir -p /srv/node/%s/objects/' %(i['device']))
+	# # os.system('chown -R swift:swift /srv/node')
 	for f in files:
-		print("===FILE in SSD===",f)
 		deviceList = dict_info[int(f)]
 		for i in deviceList:
-			os.system('mkdir -p /srv/node/%s/objects/' %(i['device']))
-	# os.system('chown -R swift:swift /srv/node')
-	for f in files:
-	     deviceList = dict_info[int(f)]
-	     # suffix = listdir('/mnt/SSD')
-	     for i in deviceList:
-	            # rsync(f,i,suffix)
-	            rsync(f,i)
-	# print "flush done.... deleting dictionary"
-	# del_dict()
+			logging.info("===I===%s",str(i))
+			logging.info("===sddict===%s",str(sddict))
+			if(i['ip'] not in sddict or i['device'] not in sddict[i['ip']]):	## MEans its mounted
+	            		rsync(f,i)
+				logging.info("===Mouted===")
+	        	else:
+				logging.info("===In else===")
+				rsync(f,i)
+	        	#os.system("ssh swift@%s echo 'password' | sudo -S mount /dev/%s",(i['ip'],i['device']))
+	        	#rsync(f,i)
+	        	#os.system("ssh swift@%s echo 'password' | sudo -S umount /dev/%s",(i['ip'],i['device']))
+	## Delete all or use cache
+	#os.system("cd /SSD/")
+	#os.system("rm -rf *")
+	        	
+	#logging.info("flush done.... deleting dictionary")
+	#del_dict()
 
 
-def main():
+def check_ssd():
+	# serv = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+	# serv.bind(('10.10.1.90',8889))
+	# serv.listen(20)
+	# while True:
+	# 	#logging.info "in while"
+	# 	conn, addr = serv.accept()
+	# 	logging.info("Got connection.")
+	# 	#logging.info "after accept"
+
+	# 	data = conn.recv(512)
+	# 	# logging.info data
+	# 	if data == 'start':
 	f = open('/home/swift/spindowndevices','r')
 	s = f.read()
-	list_device = s.split('\n')
-	list_device.remove('')
+	sdlist = s.strip().split('\n')
 	f.close()
-	serv = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-	serv.bind(('localhost',8889))
-	serv.listen(20)
-	while True:
-		#print "in while"
-		conn, addr = serv.accept()
-		print("Got connection.")
-		#print "after accept"
-		data = conn.recv(512)
-		# print data
-		if data == 'start':
-			perc = check('/SSD/')
-			print("===SSD Percentage===",perc)
-			## Call flush if SSD is full
-			# flush()
 
-		 	# if perc > 85:
-				# # for i in list_device:
-				# # 	print i
-				# # os.system('mount -t xfs -L %s /srv/node/%s'%(i,i))	
-			 #    #flush()
-			 #    # for i in range(ord('d'),ord('g')):
-				# # os.system('umount /dev/sd%s'%(chr(i)))
-		conn.send('done')
-
-
-if __name__ == '__main__':
-	 main()
+	sddict = dict()
+	for i in sdlist:
+    		if(i.split(":")[0] in sddict):
+        		sddict[i.split(":")[0]].append(i.split(":")[1])
+    		else:
+        		sddict[i.split(":")[0]] = []
+ 	       		sddict[i.split(":")[0]].append(i.split(":")[1])
+	
+	perc = check('/SSD/')
+	logging.info("===SSD Percentage===%s",perc)
+	## Call flush if SSD is full
+	flush(sddict)
