@@ -529,10 +529,11 @@ class ObjectController(Controller):
         fo.close()
 
         # Code to spin up a device if none are running already.
-        #if(len(upnodes) == 0):
-        #   dev = nodes[0]['device']
-        #    print("===ALL NODES DOWN===")
-        #    print("===Mounting device===",dev)
+        # if(len(upnodes) == 0):
+        #    dev = nodes[0]['device']
+        #    f = open("/home/swift/spindowndevices","r")
+        #    s = f.read()
+            
         #    os.system("mount /dev/"+str(dev))
             
         logging.info('===In controller PUT===:')

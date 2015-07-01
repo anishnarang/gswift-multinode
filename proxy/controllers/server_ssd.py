@@ -140,4 +140,4 @@ def check_ssd():
 	perc = check('/SSD/')
 	logging.info("===SSD Percentage===%s",perc)
 	## Call flush if SSD is full
-	flush(sddict)
+	#flush(sddict)
