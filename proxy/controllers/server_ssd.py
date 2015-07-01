@@ -99,12 +99,7 @@ def flush(sddict):
 	dict_info = ast.literal_eval(open("/home/swift/nodes.txt","r").read())
 	files = [f for f in listdir('/SSD')] 
 	logging.info("===In flush===")
-	# for f in files:
-	# 	logging.info("===FILE in SSD===",f)
-	# 	deviceList = dict_info[int(f)]
-	# 	for i in deviceList:
-	# 		os.system('mkdir -p /srv/node/%s/objects/' %(i['device']))
-	# # os.system('chown -R swift:swift /srv/node')
+	
 	for f in files:
 		deviceList = dict_info[int(f)]
 		for i in deviceList:
@@ -112,9 +107,10 @@ def flush(sddict):
 			logging.info("===sddict===%s",str(sddict))
 			if(i['ip'] not in sddict or i['device'] not in sddict[i['ip']]):	## MEans its mounted
 	            		rsync(f,i)
-				logging.info("===Mouted===")
+				logging.info("===Mounted===")
 	        	else:
-				logging.info("===In else===")
+				logging.info("===Not mounted===")
+				# Mount here and then flush
 				rsync(f,i)
 	        	#os.system("ssh swift@%s echo 'password' | sudo -S mount /dev/%s",(i['ip'],i['device']))
 	        	#rsync(f,i)
@@ -128,18 +124,6 @@ def flush(sddict):
 
 
 def check_ssd():
-	# serv = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-	# serv.bind(('10.10.1.90',8889))
-	# serv.listen(20)
-	# while True:
-	# 	#logging.info "in while"
-	# 	conn, addr = serv.accept()
-	# 	logging.info("Got connection.")
-	# 	#logging.info "after accept"
-
-	# 	data = conn.recv(512)
-	# 	# logging.info data
-	# 	if data == 'start':
 	f = open('/home/swift/spindowndevices','r')
 	s = f.read()
 	sdlist = s.strip().split('\n')

@@ -432,24 +432,24 @@ class ObjectReplicator(Daemon):
                     part_nodes = \
                         self.object_ring.get_part_nodes(int(partition))
                     #### CHANGED CODE ####
-                    f = open("/home/swift/spindowndevices","r")
-                    sdlist = f.read().strip().split("\n")
-                    logging.info("===Spun down devices===:%s",str(sdlist))
-                    f.close()
-                    sddict =dict()
-                    for i in sdlist:
-                        if(i.split(":")[0] in sddict):
-                            sddict[i.split(":")[0]].append(i.split(":")[1])
-                        else:
-                            sddict[i.split(":")[0]] = []
-                            sddict[i.split(":")[0]].append(i.split(":")[1])
-                    nodes = []
-                    for node in part_nodes:
-                        if(node['ip'] not in sddict and node['id']!= local_dev['id']):
-                            nodes.append(node)
-                        else:
-                            if(node['device'] not in sddict[node['ip']] and node['id']!=local_dev['id']):
-                                nodes.append(node)
+                    #f = open("/home/swift/spindowndevices","r")
+                    #sdlist = f.read().strip().split("\n")
+                    #logging.info("===Spun down devices===:%s",str(sdlist))
+                    #f.close()
+                    #sddict =dict()
+                    #for i in sdlist:
+                    #    if(i.split(":")[0] in sddict):
+                    #        sddict[i.split(":")[0]].append(i.split(":")[1])
+                    #    else:
+                    #        sddict[i.split(":")[0]] = []
+                    #        sddict[i.split(":")[0]].append(i.split(":")[1])
+                    #nodes = []
+                    #for node in part_nodes:
+                    #    if(node['ip'] not in sddict and node['id']!= local_dev['id']):
+                    #        nodes.append(node)
+                    #    else:
+                    #        if(node['device'] not in sddict[node['ip']] and node['id']!=local_dev['id']):
+                    #            nodes.append(node)
                     #nodes = [node for node in part_nodes
                      #        if node['id'] != local_dev['id'] and node['ip'] not in sddict]
                     logging.info("===Replication nodes===%s",str(nodes))
