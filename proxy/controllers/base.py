@@ -752,7 +752,7 @@ class GetOrHeadHandler(object):
         f.close()
 
         sddict = dict()
-        for i in downlist:
+        for i in downlist[1:]:
             iplist = i.split(":")
             if(iplist[0] in sddict):
                 sddict[i.split(":")[0]].append(iplist[1])

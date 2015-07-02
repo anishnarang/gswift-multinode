@@ -495,7 +495,7 @@ class ObjectController(Controller):
         f.close()
 
         sddict = dict()
-        for i in sdlist:
+        for i in sdlist[1:]:
             if(i.split(":")[0] in sddict):
                 sddict[i.split(":")[0]].append(i.split(":")[1])
             else:
