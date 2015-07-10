@@ -189,6 +189,7 @@ class ObjectReplicator(Daemon):
             return False
         args.append(join(rsync_module, node['device'],
                     'objects', job['partition']))
+        logging.info("+++++++++++++ Args: %s ++++++++",str(args))
         return self._rsync(args) == 0
 
     def ssync(self, node, job, suffixes):
@@ -438,6 +439,7 @@ class ObjectReplicator(Daemon):
                     #f.close()
                     #sddict =dict()
                     #for i in sdlist:
+                    #    logging.info("===sdditc===%s",sddict)
                     #    if(i.split(":")[0] in sddict):
                     #        sddict[i.split(":")[0]].append(i.split(":")[1])
                     #    else:
@@ -450,9 +452,11 @@ class ObjectReplicator(Daemon):
                     #    else:
                     #        if(node['device'] not in sddict[node['ip']] and node['id']!=local_dev['id']):
                     #            nodes.append(node)
-                    #nodes = [node for node in part_nodes
-                     #        if node['id'] != local_dev['id'] and node['ip'] not in sddict]
+                    nodes = [node for node in part_nodes
+                            if node['id'] != local_dev['id']]
+
                     logging.info("===Replication nodes===%s",str(nodes))
+#                    logging.info("===sddict===%s",str(sddict))
                     #### END CHANGED CODE ####
                     jobs.append(
                         dict(path=job_path,
